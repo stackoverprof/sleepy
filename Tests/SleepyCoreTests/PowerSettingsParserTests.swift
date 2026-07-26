@@ -6,9 +6,11 @@ func parsesBatteryAndAdapterSleepValues() {
     let settings = """
     Battery Power:
      lidwake              1
-     sleep                15
+     displaysleep         15
+     sleep                1
     AC Power:
-     sleep                60
+     displaysleep         60
+     sleep                1
     """
 
     let result = PowerSettingsParser.parse(
@@ -58,11 +60,11 @@ func formatsLabels() {
 func validatesOnlySupportedHelperRequests() {
     #expect(
         SleepRequestValidator.arguments(minutes: 30, scope: PowerScope.all.rawValue)
-            == ["-a", "sleep", "30"]
+            == ["-a", "displaysleep", "30", "sleep", "30"]
     )
     #expect(
         SleepRequestValidator.arguments(minutes: 120, scope: PowerScope.battery.rawValue)
-            == ["-b", "sleep", "120"]
+            == ["-b", "displaysleep", "120", "sleep", "120"]
     )
     #expect(SleepRequestValidator.arguments(minutes: 31, scope: PowerScope.all.rawValue) == nil)
     #expect(SleepRequestValidator.arguments(minutes: 30, scope: "something-else") == nil)

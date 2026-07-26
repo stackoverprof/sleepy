@@ -6,6 +6,10 @@ private final class SleepyHelper: NSObject, SleepyHelperProtocol {
         reply(true)
     }
 
+    func version(withReply reply: @escaping (Int) -> Void) {
+        reply(SleepyHelperConstants.protocolVersion)
+    }
+
     func setSleep(
         minutes: NSNumber,
         scope: NSString,

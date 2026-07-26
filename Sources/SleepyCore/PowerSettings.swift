@@ -99,7 +99,7 @@ public enum PowerSettingsParser {
             }
 
             let fields = line.split(whereSeparator: \.isWhitespace)
-            guard fields.count >= 2, fields[0] == "sleep", let value = Int(fields[1]) else {
+            guard fields.count >= 2, fields[0] == "displaysleep", let value = Int(fields[1]) else {
                 continue
             }
 

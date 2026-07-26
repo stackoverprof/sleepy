@@ -4,6 +4,7 @@ public enum SleepyHelperConstants {
     public static let label = "com.erbin.sleepy.helper"
     public static let executableName = "com.erbin.sleepy.helper"
     public static let plistName = "com.erbin.sleepy.helper.plist"
+    public static let protocolVersion = 2
 }
 
 public enum SleepPresets {
@@ -15,12 +16,17 @@ public enum SleepRequestValidator {
         guard SleepPresets.values.contains(minutes), let powerScope = PowerScope(rawValue: scope) else {
             return nil
         }
-        return [powerScope.pmsetFlag, "sleep", String(minutes)]
+        return [
+            powerScope.pmsetFlag,
+            "displaysleep", String(minutes),
+            "sleep", String(minutes)
+        ]
     }
 }
 
 @objc public protocol SleepyHelperProtocol: AnyObject {
     func ping(withReply reply: @escaping (Bool) -> Void)
+    func version(withReply reply: @escaping (Int) -> Void)
     func setSleep(
         minutes: NSNumber,
         scope: NSString,

@@ -49,10 +49,10 @@ final class PowerSettingsService {
         } as? SleepyHelperProtocol
 
         connection.resume()
-        proxy?.ping { response in
+        proxy?.version { version in
             lock.lock()
             let shouldSignal = !didReply
-            available = response
+            available = version == SleepyHelperConstants.protocolVersion
             didReply = true
             lock.unlock()
             if shouldSignal {

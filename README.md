@@ -3,7 +3,8 @@
 **Your Mac's sleep timer, one click away.**
 
 Sleepy is a tiny native macOS menu bar app for changing how long your Mac waits
-before going to sleep. It has no Dock icon, no main window, and no settings maze.
+before turning off the display and going to sleep. It has no Dock icon, no main
+window, and no settings maze.
 
 ## Features
 
@@ -14,7 +15,7 @@ before going to sleep. It has no Dock icon, no main window, and no settings maze
 - Launch automatically when you log in
 - Stay in sync with settings changed elsewhere in macOS
 
-Sleepy changes only the system sleep timer. It does not modify display sleep,
+Sleepy keeps the display-off and system-sleep timers in sync. It does not modify
 disk sleep, wake behavior, standby, or hibernation settings.
 
 ## Requirements
@@ -60,7 +61,7 @@ The helper exposes no general shell or command interface. It accepts only:
 
 - Sleepy's fixed minute presets
 - Battery, power adapter, or all-power-source scope
-- The `sleep` setting managed by `/usr/bin/pmset`
+- The `displaysleep` and `sleep` settings managed by `/usr/bin/pmset`
 
 All values are validated again inside the privileged process before `pmset`
 runs.
@@ -107,7 +108,7 @@ stopped. The two helper files can still be removed.
 
 ## Notes
 
-- Sleepy controls idle system sleep, not display sleep.
+- Sleepy synchronizes idle display sleep and system sleep.
 - Active power assertions from apps, media playback, sharing services, or macOS
   can temporarily prevent sleep even when a timer is configured.
 - The current build is intended for personal installation from source. It is
