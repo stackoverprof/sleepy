@@ -47,7 +47,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         if let button = statusItem.button {
             let image = NSImage(
-                systemSymbolName: "moon.zzz.fill",
+                systemSymbolName: "cup.and.saucer.fill",
                 accessibilityDescription: "Sleepy"
             )
             image?.isTemplate = true
