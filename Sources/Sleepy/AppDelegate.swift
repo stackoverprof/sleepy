@@ -132,6 +132,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func coffeeBeanImage() -> NSImage {
         let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { _ in
+            NSGraphicsContext.current?.saveGraphicsState()
+
+            let scale = NSAffineTransform()
+            scale.translateX(by: 9, yBy: 9)
+            scale.scale(by: 0.88)
+            scale.translateX(by: -9, yBy: -9)
+            scale.concat()
+
             NSColor.black.setFill()
 
             let bean = NSBezierPath()
@@ -173,6 +181,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             seam.lineCapStyle = .round
             seam.stroke()
 
+            NSGraphicsContext.current?.restoreGraphicsState()
             NSGraphicsContext.current?.restoreGraphicsState()
             return true
         }
