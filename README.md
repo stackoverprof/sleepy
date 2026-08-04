@@ -39,7 +39,7 @@ before enabling Launch at Login so macOS remembers the final location.
 
 ## Use
 
-1. Click the coffee bean and timer in the menu bar.
+1. Click the moon and timer in the menu bar.
 2. Choose whether changes apply to battery, power adapter, or both.
 3. Select a sleep preset.
 4. Approve the macOS administrator prompt the first time.

@@ -46,7 +46,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
         if let button = statusItem.button {
-            button.image = coffeeBeanImage()
+            let image = NSImage(
+                systemSymbolName: "moon.zzz.fill",
+                accessibilityDescription: "Sleepy"
+            )
+            image?.isTemplate = true
+            button.image = image
             button.imagePosition = .imageLeading
             button.title = "?"
             button.toolTip = "Sleepy: Mac sleep timer"
@@ -128,67 +133,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         updateMenuState()
         updatePermissionState()
         updateLaunchAtLoginState()
-    }
-
-    private func coffeeBeanImage() -> NSImage {
-        let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { _ in
-            NSGraphicsContext.current?.saveGraphicsState()
-
-            let scale = NSAffineTransform()
-            scale.translateX(by: 9, yBy: 9)
-            scale.scale(by: 0.88)
-            scale.translateX(by: -9, yBy: -9)
-            scale.concat()
-
-            NSColor.black.setFill()
-
-            let bean = NSBezierPath()
-            bean.move(to: NSPoint(x: 9.5, y: 1.5))
-            bean.curve(
-                to: NSPoint(x: 15.4, y: 8.4),
-                controlPoint1: NSPoint(x: 13.3, y: 1.5),
-                controlPoint2: NSPoint(x: 15.8, y: 4.7)
-            )
-            bean.curve(
-                to: NSPoint(x: 8.6, y: 16.5),
-                controlPoint1: NSPoint(x: 15.0, y: 12.5),
-                controlPoint2: NSPoint(x: 12.3, y: 16.3)
-            )
-            bean.curve(
-                to: NSPoint(x: 2.6, y: 9.7),
-                controlPoint1: NSPoint(x: 5.1, y: 16.6),
-                controlPoint2: NSPoint(x: 2.4, y: 13.6)
-            )
-            bean.curve(
-                to: NSPoint(x: 9.5, y: 1.5),
-                controlPoint1: NSPoint(x: 2.8, y: 6.0),
-                controlPoint2: NSPoint(x: 5.6, y: 1.6)
-            )
-            bean.close()
-            bean.fill()
-
-            NSGraphicsContext.current?.saveGraphicsState()
-            NSGraphicsContext.current?.compositingOperation = .clear
-
-            let seam = NSBezierPath()
-            seam.move(to: NSPoint(x: 11.9, y: 2.4))
-            seam.curve(
-                to: NSPoint(x: 6.0, y: 15.2),
-                controlPoint1: NSPoint(x: 8.7, y: 5.2),
-                controlPoint2: NSPoint(x: 10.8, y: 8.7)
-            )
-            seam.lineWidth = 1.5
-            seam.lineCapStyle = .round
-            seam.stroke()
-
-            NSGraphicsContext.current?.restoreGraphicsState()
-            NSGraphicsContext.current?.restoreGraphicsState()
-            return true
-        }
-
-        image.isTemplate = true
-        image.accessibilityDescription = "Sleepy coffee bean"
-        return image
     }
 
     @objc private func selectPreset(_ sender: NSMenuItem) {
