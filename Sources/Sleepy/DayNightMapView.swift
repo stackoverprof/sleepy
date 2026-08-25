@@ -29,6 +29,8 @@ final class DayNightMapView: NSView {
         static let equator = NSColor(white: 1, alpha: 0.10)
         static let meridian = NSColor(white: 1, alpha: 0.22)
         static let prayerMeridian = NSColor(white: 1, alpha: 0.15)
+        static let nextPrayerMeridian = NSColor(white: 1, alpha: 0.8)
+        static let nextPrayerGlow = NSColor(white: 1, alpha: 0.1)
         static let marker = NSColor(white: 0.93, alpha: 1)
         static let markerRim = NSColor(white: 0, alpha: 0.65)
         static let sun = NSColor(white: 0.93, alpha: 1)
@@ -286,20 +288,59 @@ final class DayNightMapView: NSView {
         guard let prayers else { return }
 
         let meridians = NSBezierPath()
-        for event in prayers.events where event.prayer != .dhuhr {
+        var approaching: CGFloat?
+
+        for event in prayers.events {
             let x = point(
                 latitude: 0,
                 longitude: solar.longitude(forHourAngle: event.hourAngle),
                 in: mapRect
-            ).x
-            meridians.move(to: NSPoint(x: x.rounded() + 0.5, y: mapRect.minY))
-            meridians.line(to: NSPoint(x: x.rounded() + 0.5, y: mapRect.maxY))
+            ).x.rounded() + 0.5
+
+            if event.prayer == nextPrayer {
+                approaching = x
+                continue
+            }
+
+            // Dhuhr rides the noon meridian, which is drawn already.
+            guard event.prayer != .dhuhr else { continue }
+
+            meridians.move(to: NSPoint(x: x, y: mapRect.minY))
+            meridians.line(to: NSPoint(x: x, y: mapRect.maxY))
         }
 
         meridians.lineWidth = 1
         meridians.setLineDash([1, 3], count: 2, phase: 0)
         Ink.prayerMeridian.setStroke()
         meridians.stroke()
+
+        guard let approaching else { return }
+        drawApproachingMeridian(at: approaching, in: mapRect)
+    }
+
+    /// The prayer coming next gets a solid lit meridian and a marker on the
+    /// rail above it, so the eye finds it before reading any of the numbers.
+    private func drawApproachingMeridian(at x: CGFloat, in mapRect: NSRect) {
+        let line = NSBezierPath()
+        line.move(to: NSPoint(x: x, y: mapRect.minY))
+        line.line(to: NSPoint(x: x, y: mapRect.maxY))
+
+        Ink.nextPrayerGlow.setStroke()
+        line.lineWidth = 3
+        line.stroke()
+
+        Ink.nextPrayerMeridian.setStroke()
+        line.lineWidth = 1
+        line.stroke()
+
+        let head = NSBezierPath()
+        head.move(to: NSPoint(x: x - 3.5, y: mapRect.maxY))
+        head.line(to: NSPoint(x: x + 3.5, y: mapRect.maxY))
+        head.line(to: NSPoint(x: x, y: mapRect.maxY - 4.5))
+        head.close()
+
+        Ink.nextPrayerMeridian.setFill()
+        head.fill()
     }
 
     private func drawPlace(in mapRect: NSRect) {
