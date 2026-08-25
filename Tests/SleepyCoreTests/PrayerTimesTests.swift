@@ -205,3 +205,42 @@ func maghribCurveFollowsTheTerminator() {
         #expect(abs(elevation - PrayerCalculator.sunsetAltitude) < 0.001)
     }
 }
+
+@Test
+func asrNeedsANoonShadowToMeasure() {
+    let moment = reference("16:40", on: "25-08-2026", in: jakartaZone)
+    let solar = SolarPositionCalculator.position(at: moment)
+
+    // The shadow is shortest where the sun stands overhead at noon, and Asr
+    // waits for it to match the object's own height: a 45 degree sun.
+    let overhead = PrayerCalculator.altitude(
+        for: .asr,
+        latitude: solar.subsolarLatitude,
+        declination: solar.subsolarLatitude
+    )
+    #expect(abs(overhead! - 45) < 0.001)
+
+    // Away from it the noon shadow is already long, so Asr comes at a lower
+    // sun, and the curve keeps going while the sun still clears the horizon.
+    #expect(PrayerCalculator.longitude(of: .asr, atLatitude: 60, solar: solar) != nil)
+    #expect(PrayerCalculator.longitude(of: .asr, atLatitude: 84, solar: solar) != nil)
+
+    // Into the polar night there is no noon shadow at all, so no Asr to draw.
+    #expect(PrayerCalculator.altitude(for: .asr, latitude: -84, declination: 10.83) == nil)
+    #expect(PrayerCalculator.longitude(of: .asr, atLatitude: -84, solar: solar) == nil)
+}
+
+@Test
+func polarNightHasNoAsr() {
+    let zone = TimeZone(identifier: "Europe/Oslo")!
+    let times = PrayerCalculator.day(
+        containing: noon("21-12-2026", zone),
+        at: Coordinate(latitude: 78.2, longitude: 15.6), // Svalbard
+        timeZone: zone,
+        convention: .muslimWorldLeague
+    )
+
+    #expect(times[.asr] == nil)
+    #expect(times[.maghrib] == nil)
+    #expect(times[.dhuhr] != nil)
+}

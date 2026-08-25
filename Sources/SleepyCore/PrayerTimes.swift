@@ -151,7 +151,7 @@ public enum PrayerCalculator {
                     latitude: coordinate.latitude,
                     declination: declination,
                     convention: convention
-                ) ?? 0
+                )
             },
             afternoon: true,
             transit: transit,
@@ -238,14 +238,19 @@ public enum PrayerCalculator {
         case .dhuhr:
             nil
         case .asr:
-            SolarMath.degrees(
-                atan(
-                    1 / (
-                        convention.asrShadowFactor
-                            + tan(abs(SolarMath.radians(latitude) - SolarMath.radians(declination)))
-                    )
+            // The shadow to beat is the one the sun casts at noon, so this
+            // grows with the distance from the subsolar latitude. Past a
+            // quarter turn the sun does not clear the horizon at noon at all
+            // and there is no shadow to measure.
+            {
+                let noonGap = abs(latitude - declination)
+                guard noonGap < 90 else { return nil }
+
+                let altitude = SolarMath.degrees(
+                    atan(1 / (convention.asrShadowFactor + tan(SolarMath.radians(noonGap))))
                 )
-            )
+                return altitude > 0 ? altitude : nil
+            }()
         case .maghrib:
             sunsetAltitude
         case .isha:
@@ -322,7 +327,7 @@ public enum PrayerCalculator {
     /// Solves for the moment the sun reaches an altitude, which the caller
     /// gives as a function of the declination so Asr can move with the season.
     private static func event(
-        altitude: (Double) -> Double,
+        altitude: (Double) -> Double?,
         afternoon: Bool,
         transit: Date,
         coordinate: Coordinate
@@ -334,7 +339,8 @@ public enum PrayerCalculator {
             let solar = SolarPositionCalculator.position(at: moment)
             let declination = SolarMath.radians(solar.subsolarLatitude)
             let latitude = SolarMath.radians(coordinate.latitude)
-            let target = SolarMath.radians(altitude(solar.subsolarLatitude))
+            guard let degrees = altitude(solar.subsolarLatitude) else { return nil }
+            let target = SolarMath.radians(degrees)
 
             let cosine = (sin(target) - sin(latitude) * sin(declination))
                 / (cos(latitude) * cos(declination))
