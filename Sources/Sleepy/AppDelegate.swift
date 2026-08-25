@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var scopeItems: [PowerScope: NSMenuItem] = [:]
     private var permissionItem: NSMenuItem!
     private var launchAtLoginItem: NSMenuItem!
+    private var mapView: DayNightMapView!
 
     private var selectedScope: PowerScope {
         get {
@@ -37,6 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func menuWillOpen(_ menu: NSMenu) {
+        mapView?.refresh()
         refreshSettings(showErrors: false)
         updatePermissionState()
         updateLaunchAtLoginState()
@@ -59,6 +61,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         let menu = NSMenu()
         menu.delegate = self
+
+        mapView = DayNightMapView(
+            frame: NSRect(origin: .zero, size: DayNightMapView.preferredSize)
+        )
+        let mapItem = NSMenuItem()
+        mapItem.view = mapView
+        menu.addItem(mapItem)
+
+        menu.addItem(.separator())
 
         let heading = NSMenuItem(title: "Sleep after", action: nil, keyEquivalent: "")
         heading.isEnabled = false
