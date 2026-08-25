@@ -75,10 +75,16 @@ Fajr, 18 for Isha, the Shafi'i shadow for Asr, and two minutes of ihtiyati on
 every entry. They match the published Kemenag timetable to the minute, which the
 test suite pins as fixtures.
 
-Each prayer also draws a dotted meridian on the map: the line of longitude where
-that prayer is being called at this moment. The lines sweep west, so a line east
-of your marker is a prayer still to come, and one west of you has already
-passed. Dhuhr rides the noon meridian the sun stands on.
+Each prayer also draws a curve on the map, tracing everywhere it is being called
+at this moment. The curves sweep west, so one east of your marker is a prayer
+still to come and one west of you has already passed, and the next one is lit
+with a head riding it at your own latitude.
+
+Only Dhuhr is a straight meridian, the one the sun stands on. The rest bend,
+because the sun has to climb further to reach the same angle away from the
+tropics: Maghrib traces the terminator exactly, and a curve simply stops at the
+latitude where the sun stops reaching its angle at all, which is the honest
+picture of why prayer times run out in the polar summer.
 
 Sleepy asks Location Services for a fix on first launch. Until one arrives, and
 whenever permission is refused, it falls back to the coordinate macOS keeps for

@@ -33,7 +33,7 @@ final class DayNightMapView: NSView {
         static let nextPrayerGlow = NSColor(white: 1, alpha: 0.1)
         static let marker = NSColor(white: 0.93, alpha: 1)
         static let markerRim = NSColor(white: 0, alpha: 0.65)
-        static let sun = NSColor(white: 0.93, alpha: 1)
+        static let sun = NSColor(calibratedRed: 1, green: 0.82, blue: 0.32, alpha: 1)
         static let sunRim = NSColor(white: 0, alpha: 0.65)
     }
 
@@ -121,7 +121,7 @@ final class DayNightMapView: NSView {
         }
 
         drawGraticule(in: mapRect)
-        drawPrayerMeridians(in: mapRect)
+        drawPrayerCurves(in: mapRect)
         drawNoonMeridian(in: mapRect)
         drawSun(in: mapRect)
         drawPlace(in: mapRect)
@@ -281,66 +281,116 @@ final class DayNightMapView: NSView {
         ticks.stroke()
     }
 
-    /// One meridian per prayer, marking where in the world that prayer is
-    /// being called right now. They sweep west, so a line east of the marker
-    /// is a prayer still to come.
-    private func drawPrayerMeridians(in mapRect: NSRect) {
+    /// One curve per prayer, tracing where in the world that prayer is being
+    /// called right now.
+    ///
+    /// Only Dhuhr is a meridian. The rest bend with latitude, because the sun
+    /// has to climb further to reach the same angle further from the tropics,
+    /// and the curve simply stops where it never reaches it at all.
+    private func drawPrayerCurves(in mapRect: NSRect) {
         guard let prayers else { return }
 
-        let meridians = NSBezierPath()
-        var approaching: CGFloat?
+        let others = NSBezierPath()
+        var approaching: (curve: NSBezierPath, prayer: Prayer)?
 
         for event in prayers.events {
-            let x = point(
-                latitude: 0,
-                longitude: solar.longitude(forHourAngle: event.hourAngle),
-                in: mapRect
-            ).x.rounded() + 0.5
+            let curve = curve(for: event.prayer, in: mapRect)
 
             if event.prayer == nextPrayer {
-                approaching = x
+                approaching = (curve, event.prayer)
                 continue
             }
 
             // Dhuhr rides the noon meridian, which is drawn already.
             guard event.prayer != .dhuhr else { continue }
 
-            meridians.move(to: NSPoint(x: x, y: mapRect.minY))
-            meridians.line(to: NSPoint(x: x, y: mapRect.maxY))
+            others.append(curve)
         }
 
-        meridians.lineWidth = 1
-        meridians.setLineDash([2, 3], count: 2, phase: 0)
+        others.lineWidth = 1
+        others.setLineDash([2, 3], count: 2, phase: 0)
         Ink.prayerMeridian.setStroke()
-        meridians.stroke()
+        others.stroke()
 
         guard let approaching else { return }
-        drawApproachingMeridian(at: approaching, in: mapRect)
+        drawApproaching(approaching.curve, prayer: approaching.prayer, in: mapRect)
     }
 
-    /// The prayer coming next gets a solid lit meridian and a marker on the
-    /// rail above it, so the eye finds it before reading any of the numbers.
-    private func drawApproachingMeridian(at x: CGFloat, in mapRect: NSRect) {
-        let line = NSBezierPath()
-        line.move(to: NSPoint(x: x, y: mapRect.minY))
-        line.line(to: NSPoint(x: x, y: mapRect.maxY))
+    private func curve(for prayer: Prayer, in mapRect: NSRect) -> NSBezierPath {
+        let span = DayNightMap.visibleLatitude
+        var strokes: [[NSPoint]] = []
+        var latitude = span
 
+        while latitude >= -span {
+            defer { latitude -= 1.5 }
+
+            guard
+                let longitude = PrayerCalculator.longitude(
+                    of: prayer,
+                    atLatitude: latitude,
+                    solar: solar
+                )
+            else {
+                // No such prayer at this latitude today: break the curve.
+                strokes.append([])
+                continue
+            }
+
+            let next = point(latitude: latitude, longitude: longitude, in: mapRect)
+            let carriesOn = (strokes.last?.last).map { abs(next.x - $0.x) < mapRect.width / 2 } ?? false
+
+            if carriesOn {
+                strokes[strokes.count - 1].append(next)
+            } else {
+                strokes.append([next])
+            }
+        }
+
+        let path = NSBezierPath()
+        // Right where a prayer runs out of latitude its curve whips around the
+        // far side of the world, leaving stubs that read as specks rather than
+        // as geometry. Only strokes with some length to them are worth drawing.
+        for stroke in strokes where stroke.count >= 4 {
+            path.move(to: stroke[0])
+            for point in stroke.dropFirst() {
+                path.line(to: point)
+            }
+        }
+
+        return path
+    }
+
+    /// The prayer coming next is lit, with a head riding the curve at your own
+    /// latitude: the point of it that will reach you.
+    private func drawApproaching(_ curve: NSBezierPath, prayer: Prayer, in mapRect: NSRect) {
         Ink.nextPrayerGlow.setStroke()
-        line.lineWidth = 3
-        line.stroke()
+        curve.lineWidth = 3
+        curve.stroke()
 
         Ink.nextPrayerMeridian.setStroke()
-        line.lineWidth = 1
-        line.stroke()
+        curve.lineWidth = 1
+        curve.stroke()
 
-        let head = NSBezierPath()
-        head.move(to: NSPoint(x: x - 3.5, y: mapRect.maxY))
-        head.line(to: NSPoint(x: x + 3.5, y: mapRect.maxY))
-        head.line(to: NSPoint(x: x, y: mapRect.maxY - 4.5))
-        head.close()
+        guard
+            let place,
+            let longitude = PrayerCalculator.longitude(
+                of: prayer,
+                atLatitude: place.latitude,
+                solar: solar
+            )
+        else {
+            return
+        }
+
+        let head = point(latitude: place.latitude, longitude: longitude, in: mapRect)
+        let arrow = NSBezierPath()
+        arrow.move(to: NSPoint(x: head.x - 5, y: head.y))
+        arrow.line(to: NSPoint(x: head.x + 0.5, y: head.y - 3.5))
+        arrow.line(to: NSPoint(x: head.x + 0.5, y: head.y + 3.5))
+        arrow.close()
 
         Ink.nextPrayerMeridian.setFill()
-        head.fill()
+        arrow.fill()
     }
 
     private func drawPlace(in mapRect: NSRect) {
