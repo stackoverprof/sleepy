@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var permissionItem: NSMenuItem!
     private var launchAtLoginItem: NSMenuItem!
     private var mapView: DayNightMapView!
+    private let location = LocationProvider()
 
     private var selectedScope: PowerScope {
         get {
@@ -35,6 +36,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         NSApp.setActivationPolicy(.accessory)
         configureStatusItem()
         refreshSettings(showErrors: true)
+
+        location.onChange = { [weak self] in
+            self?.mapView?.place = self?.location.coordinate
+        }
+        location.start()
     }
 
     func menuWillOpen(_ menu: NSMenu) {
@@ -65,6 +71,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         mapView = DayNightMapView(
             frame: NSRect(origin: .zero, size: DayNightMapView.preferredSize)
         )
+        mapView.place = location.coordinate
         let mapItem = NSMenuItem()
         mapItem.view = mapView
         menu.addItem(mapItem)
