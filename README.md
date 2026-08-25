@@ -11,6 +11,8 @@ window, and no settings maze.
 - See the active sleep timer directly in the menu bar
 - Glance at a live grey and black day and night world map, with hour stamps
   marking what time it is at each longitude
+- Read today's five prayer times, with each prayer's meridian drawn across the
+  map as it sweeps toward you
 - Choose from 1, 5, 10, 15, 30, 60, and 120 minutes, or Never
 - Apply changes to battery, power adapter, or both
 - Approve administrator access once, then change presets without more prompts
@@ -64,6 +66,25 @@ before enabling Launch at Login so macOS remembers the final location.
 4. Approve the macOS administrator prompt the first time.
 
 After the initial approval, preset changes do not require another password.
+
+## Prayer times
+
+The row under the map lists today's five prayers, with the next one lit. Times
+follow Kementerian Agama Republik Indonesia: 20 degrees below the horizon for
+Fajr, 18 for Isha, the Shafi'i shadow for Asr, and two minutes of ihtiyati on
+every entry. They match the published Kemenag timetable to the minute, which the
+test suite pins as fixtures.
+
+Each prayer also draws a dotted meridian on the map: the line of longitude where
+that prayer is being called at this moment. The lines sweep west, so a line east
+of your marker is a prayer still to come, and one west of you has already
+passed. Dhuhr rides the noon meridian the sun stands on.
+
+Sleepy asks Location Services for a fix on first launch. Until one arrives, and
+whenever permission is refused, it falls back to the coordinate macOS keeps for
+your time zone in `/usr/share/zoneinfo/zone.tab`, which lands within a couple of
+minutes of the right times. Either way the coordinate stays on the Mac: nothing
+is sent anywhere.
 
 ## Why the first change needs permission
 

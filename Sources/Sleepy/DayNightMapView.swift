@@ -5,7 +5,7 @@ import SleepyCore
 /// grey-on-black plate, a caption row, and an hour scale along the bottom.
 @MainActor
 final class DayNightMapView: NSView {
-    static let preferredSize = NSSize(width: 268, height: 170)
+    static let preferredSize = NSSize(width: 268, height: 190)
 
     private enum Layout {
         static let horizontalInset: CGFloat = 12
@@ -14,11 +14,12 @@ final class DayNightMapView: NSView {
         static let captionGap: CGFloat = 7
         static let tickLength: CGFloat = 3
         static let scaleHeight: CGFloat = 14
-        static let bottomInset: CGFloat = 7
+        static let prayerRowHeight: CGFloat = 28
+        static let bottomInset: CGFloat = 6
         static let cornerRadius: CGFloat = 6
 
         static var chromeHeight: CGFloat {
-            topInset + captionHeight + captionGap + scaleHeight + bottomInset
+            topInset + captionHeight + captionGap + scaleHeight + prayerRowHeight + bottomInset
         }
     }
 
@@ -27,17 +28,34 @@ final class DayNightMapView: NSView {
         static let graticule = NSColor(white: 1, alpha: 0.055)
         static let equator = NSColor(white: 1, alpha: 0.10)
         static let meridian = NSColor(white: 1, alpha: 0.22)
+        static let prayerMeridian = NSColor(white: 1, alpha: 0.15)
+        static let marker = NSColor(white: 0.93, alpha: 1)
+        static let markerRim = NSColor(white: 0, alpha: 0.65)
         static let sun = NSColor(white: 0.93, alpha: 1)
         static let sunRim = NSColor(white: 0, alpha: 0.65)
     }
 
     private let captionFont = NSFont.systemFont(ofSize: 8, weight: .semibold)
     private let readoutFont = NSFont.monospacedSystemFont(ofSize: 8, weight: .medium)
+    private let prayerNameFont = NSFont.systemFont(ofSize: 7, weight: .semibold)
+    private let prayerTimeFont = NSFont.monospacedSystemFont(ofSize: 10, weight: .medium)
+
+    /// Where the Mac is. The prayer meridians and the marker need it; the map
+    /// itself does not.
+    var place: Coordinate? {
+        didSet {
+            guard place != oldValue else { return }
+            renderedMinute = nil
+            refresh()
+        }
+    }
 
     private var solar = SolarPositionCalculator.position(at: Date())
     private var terrain: NSImage?
     private var renderedMinute: Date?
     private var clock = ""
+    private var prayers: PrayerDay?
+    private var nextPrayer: Prayer?
 
     override var allowsVibrancy: Bool { false }
 
@@ -69,6 +87,14 @@ final class DayNightMapView: NSView {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "HH:mm"
         clock = formatter.string(from: date)
+
+        if let place {
+            prayers = PrayerCalculator.day(containing: date, at: place)
+            nextPrayer = PrayerCalculator.next(after: date, at: place)?.prayer
+        } else {
+            prayers = nil
+            nextPrayer = nil
+        }
     }
 
     override func draw(_ dirtyRect: NSRect) {
@@ -93,8 +119,10 @@ final class DayNightMapView: NSView {
         }
 
         drawGraticule(in: mapRect)
+        drawPrayerMeridians(in: mapRect)
         drawNoonMeridian(in: mapRect)
         drawSun(in: mapRect)
+        drawPlace(in: mapRect)
 
         NSGraphicsContext.restoreGraphicsState()
 
@@ -103,6 +131,7 @@ final class DayNightMapView: NSView {
         plate.stroke()
 
         drawHourScale(below: mapRect)
+        drawPrayerRow(below: mapRect)
     }
 
     /// A plate that keeps the projection's proportions whatever width the menu
@@ -248,6 +277,97 @@ final class DayNightMapView: NSView {
         NSColor.quaternaryLabelColor.setStroke()
         ticks.lineWidth = 1
         ticks.stroke()
+    }
+
+    /// One meridian per prayer, marking where in the world that prayer is
+    /// being called right now. They sweep west, so a line east of the marker
+    /// is a prayer still to come.
+    private func drawPrayerMeridians(in mapRect: NSRect) {
+        guard let prayers else { return }
+
+        let meridians = NSBezierPath()
+        for event in prayers.events where event.prayer != .dhuhr {
+            let x = point(
+                latitude: 0,
+                longitude: solar.longitude(forHourAngle: event.hourAngle),
+                in: mapRect
+            ).x
+            meridians.move(to: NSPoint(x: x.rounded() + 0.5, y: mapRect.minY))
+            meridians.line(to: NSPoint(x: x.rounded() + 0.5, y: mapRect.maxY))
+        }
+
+        meridians.lineWidth = 1
+        meridians.setLineDash([1, 3], count: 2, phase: 0)
+        Ink.prayerMeridian.setStroke()
+        meridians.stroke()
+    }
+
+    private func drawPlace(in mapRect: NSRect) {
+        guard let place else { return }
+
+        let center = point(latitude: place.latitude, longitude: place.longitude, in: mapRect)
+        let ring = NSBezierPath(ovalIn: circle(around: center, radius: 3))
+
+        Ink.markerRim.setStroke()
+        ring.lineWidth = 2.5
+        ring.stroke()
+
+        Ink.marker.setStroke()
+        ring.lineWidth = 1
+        ring.stroke()
+
+        Ink.marker.setFill()
+        NSBezierPath(ovalIn: circle(around: center, radius: 0.75)).fill()
+    }
+
+    /// The five prayers for today at this place, with the next one lit.
+    private func drawPrayerRow(below mapRect: NSRect) {
+        let top = mapRect.minY - Layout.scaleHeight
+        let columnWidth = mapRect.width / CGFloat(Prayer.allCases.count)
+
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "HH:mm"
+
+        for (index, prayer) in Prayer.allCases.enumerated() {
+            let isNext = prayer == nextPrayer
+            let center = mapRect.minX + columnWidth * (CGFloat(index) + 0.5)
+
+            let name = NSAttributedString(
+                string: prayer.displayName.uppercased(),
+                attributes: [
+                    .font: prayerNameFont,
+                    .kern: 0.6,
+                    .foregroundColor: isNext ? NSColor.secondaryLabelColor : NSColor.tertiaryLabelColor
+                ]
+            )
+
+            let event = prayers?[prayer]
+            let time = NSAttributedString(
+                string: event.map { formatter.string(from: rounded($0.date)) } ?? "--:--",
+                attributes: [
+                    .font: prayerTimeFont,
+                    .foregroundColor: isNext ? NSColor.labelColor : NSColor.secondaryLabelColor
+                ]
+            )
+
+            let nameSize = name.size()
+            let timeSize = time.size()
+            name.draw(at: NSPoint(
+                x: (center - nameSize.width / 2).rounded(),
+                y: (top - nameSize.height - 1).rounded()
+            ))
+            time.draw(at: NSPoint(
+                x: (center - timeSize.width / 2).rounded(),
+                y: (top - nameSize.height - timeSize.height - 1).rounded()
+            ))
+        }
+    }
+
+    /// Prayer times are published to the minute, so round rather than let the
+    /// formatter drop the seconds and read a minute early.
+    private func rounded(_ date: Date) -> Date {
+        Date(timeIntervalSince1970: (date.timeIntervalSince1970 / 60).rounded() * 60)
     }
 
     private func point(latitude: Double, longitude: Double, in mapRect: NSRect) -> NSPoint {

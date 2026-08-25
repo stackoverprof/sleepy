@@ -27,7 +27,13 @@ public struct SolarPosition: Equatable, Sendable {
     /// Longitude, in degrees east, where the clock currently reads `hour` in
     /// apparent solar time. Hour 12 is the noon meridian the sun stands over.
     public func longitude(forSolarHour hour: Double) -> Double {
-        SolarMath.wrapped180(subsolarLongitude + (hour - 12) * 15)
+        longitude(forHourAngle: (hour - 12) * 15)
+    }
+
+    /// Longitude, in degrees east, where the sun currently stands this many
+    /// degrees off the local meridian. Prayer meridians are drawn from this.
+    public func longitude(forHourAngle hourAngle: Double) -> Double {
+        SolarMath.wrapped180(subsolarLongitude + hourAngle)
     }
 
     /// Sine of ``elevation(latitude:longitude:)``, which is what shading the
