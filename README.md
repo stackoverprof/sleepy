@@ -15,6 +15,7 @@ window, and no settings maze.
   map as it sweeps toward you
 - Choose from 1, 5, 10, 15, 30, 60, and 120 minutes, or Never
 - Apply changes to battery, power adapter, or both
+- Open the menu from anywhere with a global shortcut, ⌘⌥Z by default
 - Approve administrator access once, then change presets without more prompts
 - Launch automatically when you log in
 - Stay in sync with settings changed elsewhere in macOS
@@ -66,6 +67,17 @@ before enabling Launch at Login so macOS remembers the final location.
 4. Approve the macOS administrator prompt the first time.
 
 After the initial approval, preset changes do not require another password.
+
+## Shortcut
+
+⌘⌥Z opens the menu from any app, and closes it again. Pick a different
+combination, or turn it off, under Shortcut in the menu. The choices are ⌘⌥Z,
+⌃⌥Z, ⌥Space and Off.
+
+The shortcut is registered through the Carbon hot key API, the one route that
+needs no accessibility or input monitoring permission, so Sleepy never asks to
+watch your keyboard. If another app already holds the combination, Sleepy leaves
+it alone and says so in the menu.
 
 ## Prayer times
 

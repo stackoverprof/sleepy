@@ -16,6 +16,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var launchAtLoginItem: NSMenuItem!
     private var mapView: DayNightMapView!
     private let location = LocationProvider()
+    private let hotKey = GlobalHotKey()
+    private var shortcutItems: [MenuShortcut: NSMenuItem] = [:]
+    private var isMenuOpen = false
 
     private var selectedScope: PowerScope {
         get {
@@ -41,13 +44,56 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self?.mapView?.place = self?.location.coordinate
         }
         location.start()
+        applyShortcut(MenuShortcut.current)
     }
 
     func menuWillOpen(_ menu: NSMenu) {
+        isMenuOpen = true
         mapView?.refresh()
         refreshSettings(showErrors: false)
         updatePermissionState()
         updateLaunchAtLoginState()
+    }
+
+    func menuDidClose(_ menu: NSMenu) {
+        isMenuOpen = false
+    }
+
+    /// Opens the menu from the shortcut, or closes it if it is already down.
+    private func toggleMenu() {
+        if isMenuOpen {
+            statusItem?.menu?.cancelTracking()
+        } else {
+            statusItem?.button?.performClick(nil)
+        }
+    }
+
+    private func applyShortcut(_ shortcut: MenuShortcut) {
+        MenuShortcut.current = shortcut
+        hotKey.unregister()
+
+        if shortcut != .off {
+            let registered = hotKey.register(shortcut) { [weak self] in
+                self?.toggleMenu()
+            }
+            if !registered {
+                shortcutItems[shortcut]?.toolTip = "Another app is already using \(shortcut.displayName)"
+            }
+        }
+
+        for (candidate, item) in shortcutItems {
+            item.state = candidate == shortcut ? .on : .off
+        }
+    }
+
+    @objc private func selectShortcut(_ sender: NSMenuItem) {
+        guard
+            let raw = sender.representedObject as? String,
+            let shortcut = MenuShortcut(rawValue: raw)
+        else {
+            return
+        }
+        applyShortcut(shortcut)
     }
 
     private func configureStatusItem() {
@@ -112,6 +158,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let scopeRoot = NSMenuItem(title: "Apply to", action: nil, keyEquivalent: "")
         scopeRoot.submenu = scopeMenu
         menu.addItem(scopeRoot)
+
+        let shortcutMenu = NSMenu()
+        for shortcut in MenuShortcut.allCases {
+            let item = NSMenuItem(
+                title: shortcut.displayName,
+                action: #selector(selectShortcut(_:)),
+                keyEquivalent: ""
+            )
+            item.target = self
+            item.representedObject = shortcut.rawValue
+            shortcutItems[shortcut] = item
+            shortcutMenu.addItem(item)
+        }
+
+        let shortcutRoot = NSMenuItem(title: "Shortcut", action: nil, keyEquivalent: "")
+        shortcutRoot.submenu = shortcutMenu
+        menu.addItem(shortcutRoot)
 
         menu.addItem(.separator())
 
