@@ -9,6 +9,8 @@ window, and no settings maze.
 ## Features
 
 - See the active sleep timer directly in the menu bar
+- Glance at a live grey and black day and night world map, with hour stamps
+  marking what time it is at each longitude
 - Choose from 1, 5, 10, 15, 30, 60, and 120 minutes, or Never
 - Apply changes to battery, power adapter, or both
 - Approve administrator access once, then change presets without more prompts
@@ -22,6 +24,20 @@ disk sleep, wake behavior, standby, or hibernation settings.
 
 - macOS 13 or newer
 - Swift 6.2 toolchain to build from source
+
+## Install
+
+Download `Sleepy-<version>.dmg` from the
+[latest release](https://github.com/stackoverprof/sleepy/releases/latest), open
+it, and drag Sleepy into Applications.
+
+The app is signed locally rather than notarized, so macOS holds it the first
+time. Right-click Sleepy in Applications, choose Open, then confirm. If macOS
+refuses outright, clear the quarantine flag and open it again:
+
+```sh
+xattr -dr com.apple.quarantine /Applications/Sleepy.app
+```
 
 ## Install from source
 
@@ -39,7 +55,10 @@ before enabling Launch at Login so macOS remembers the final location.
 
 ## Use
 
-1. Click the moon and timer in the menu bar.
+1. Click the moon and timer in the menu bar. The map at the top shows where it
+   is daylight right now: the dot marks the point the sun is directly overhead,
+   and the scale underneath stamps the hour along each meridian, so 12 always
+   sits under the sun and 00 on the far side of the world.
 2. Choose whether changes apply to battery, power adapter, or both.
 3. Select a sleep preset.
 4. Approve the macOS administrator prompt the first time.
@@ -89,7 +108,24 @@ The project is split into three Swift targets:
 | `SleepyCore` | Power-setting model, parser, request validation, and XPC protocol |
 | `SleepyHelper` | Narrow privileged service that applies validated settings |
 
-The build script creates an ad hoc signed local app at `dist/Sleepy.app`.
+The build script creates an ad hoc signed local app at `dist/Sleepy.app`. To
+package a release, `./Tools/make-dmg.sh` builds that app and wraps it in
+`dist/Sleepy-<version>.dmg` with a drag-to-Applications shortcut.
+
+### World map data
+
+The day and night map is drawn from an embedded half-degree land and ocean
+bitmask, so the app needs no map service, network access, or image asset. The
+mask is generated from Natural Earth 110m land outlines, which are in the public
+domain:
+
+```sh
+python3 Tools/generate-land-mask.py
+```
+
+That rewrites `Sources/SleepyCore/WorldLandMaskData.swift`, which is otherwise
+never edited by hand. Daylight comes from the NOAA solar position equations in
+`Sources/SleepyCore/SolarPosition.swift`.
 
 ## Remove Sleepy
 
