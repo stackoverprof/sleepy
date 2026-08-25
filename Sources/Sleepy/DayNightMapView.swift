@@ -27,8 +27,8 @@ final class DayNightMapView: NSView {
         static let border = NSColor(white: 1, alpha: 0.10)
         static let graticule = NSColor(white: 1, alpha: 0.055)
         static let equator = NSColor(white: 1, alpha: 0.10)
-        static let meridian = NSColor(white: 1, alpha: 0.22)
-        static let prayerMeridian = NSColor(white: 1, alpha: 0.15)
+        static let meridian = NSColor(white: 1, alpha: 0.3)
+        static let prayerMeridian = NSColor(white: 1, alpha: 0.34)
         static let nextPrayerMeridian = NSColor(white: 1, alpha: 0.8)
         static let nextPrayerGlow = NSColor(white: 1, alpha: 0.1)
         static let marker = NSColor(white: 0.93, alpha: 1)
@@ -208,7 +208,7 @@ final class DayNightMapView: NSView {
         meridian.move(to: NSPoint(x: x.rounded() + 0.5, y: mapRect.minY))
         meridian.line(to: NSPoint(x: x.rounded() + 0.5, y: mapRect.maxY))
         meridian.lineWidth = 1
-        meridian.setLineDash([1, 3], count: 2, phase: 0)
+        meridian.setLineDash([4, 3], count: 2, phase: 0)
         Ink.meridian.setStroke()
         meridian.stroke()
     }
@@ -310,7 +310,7 @@ final class DayNightMapView: NSView {
         }
 
         meridians.lineWidth = 1
-        meridians.setLineDash([1, 3], count: 2, phase: 0)
+        meridians.setLineDash([2, 3], count: 2, phase: 0)
         Ink.prayerMeridian.setStroke()
         meridians.stroke()
 
@@ -379,7 +379,7 @@ final class DayNightMapView: NSView {
                 attributes: [
                     .font: prayerNameFont,
                     .kern: 0.6,
-                    .foregroundColor: isNext ? NSColor.secondaryLabelColor : NSColor.tertiaryLabelColor
+                    .foregroundColor: isNext ? NSColor.secondaryLabelColor : NSColor.quaternaryLabelColor
                 ]
             )
 
@@ -388,7 +388,7 @@ final class DayNightMapView: NSView {
                 string: event.map { formatter.string(from: rounded($0.date)) } ?? "--:--",
                 attributes: [
                     .font: prayerTimeFont,
-                    .foregroundColor: isNext ? NSColor.labelColor : NSColor.secondaryLabelColor
+                    .foregroundColor: isNext ? NSColor.labelColor : NSColor.tertiaryLabelColor
                 ]
             )
 
