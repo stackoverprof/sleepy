@@ -1,5 +1,5 @@
+import AppKit
 import Carbon.HIToolbox
-import Foundation
 
 /// The global shortcut that opens and closes the Sleepy menu.
 enum MenuShortcut: String, CaseIterable {
@@ -39,6 +39,25 @@ enum MenuShortcut: String, CaseIterable {
         case .commandOptionZ, .controlOptionZ: UInt32(kVK_ANSI_Z)
         case .optionSpace: UInt32(kVK_Space)
         case .off: nil
+        }
+    }
+
+    /// The same combination expressed for a menu item, which is how the menu
+    /// closes itself while it is the one holding the keyboard.
+    var keyEquivalent: String {
+        switch self {
+        case .commandOptionZ, .controlOptionZ: "z"
+        case .optionSpace: " "
+        case .off: ""
+        }
+    }
+
+    var modifierFlags: NSEvent.ModifierFlags {
+        switch self {
+        case .commandOptionZ: [.command, .option]
+        case .controlOptionZ: [.control, .option]
+        case .optionSpace: [.option]
+        case .off: []
         }
     }
 
@@ -116,6 +135,10 @@ final class GlobalHotKey {
         onPress = nil
     }
 
+    /// Called straight from Carbon's own event handling, so whatever the
+    /// handler does must be quick. Opening a menu here would enter a modal
+    /// tracking loop mid-dispatch and leave the keystroke to be delivered
+    /// again when tracking unwinds, so callers defer the real work.
     private func fire() {
         onPress?()
     }

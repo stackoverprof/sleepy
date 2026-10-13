@@ -19,6 +19,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let hotKey = GlobalHotKey()
     private var shortcutItems: [MenuShortcut: NSMenuItem] = [:]
     private var isMenuOpen = false
+    private var mapItem: NSMenuItem!
+    private var menu: NSMenu!
+    private var lastToggle = 0.0
 
     private var selectedScope: PowerScope {
         get {
@@ -48,6 +51,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func menuWillOpen(_ menu: NSMenu) {
+        DebugLog.write("menuWillOpen")
         isMenuOpen = true
         mapView?.refresh()
         refreshSettings(showErrors: false)
@@ -56,26 +60,99 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func menuDidClose(_ menu: NSMenu) {
+        DebugLog.write("menuDidClose")
         isMenuOpen = false
+        statusItem?.button?.highlight(false)
+    }
+
+    @objc private func statusItemClicked() {
+        DebugLog.write("statusItemClicked, isMenuOpen=\(isMenuOpen)")
+        toggleMenu(pressedWhileOpen: isMenuOpen)
     }
 
     /// Opens the menu from the shortcut, or closes it if it is already down.
-    private func toggleMenu() {
-        if isMenuOpen {
-            statusItem?.menu?.cancelTracking()
-        } else {
-            statusItem?.button?.performClick(nil)
+    ///
+    /// Whether the menu was down is read now, while the key is still under the
+    /// finger, and acted on next time round the loop: showing a menu means
+    /// entering a modal tracking loop, which is no place to leave a Carbon
+    /// event half dispatched. A press that arrived over an open menu can then
+    /// only ever close it, however late the loop gets to it.
+    ///
+    /// A press can also reach here twice, from the hot key and from the menu's
+    /// own key equivalent, so anything landing on the heels of the last one is
+    /// taken to be the same press arriving by the other road.
+    private func handleShortcut() {
+        let wasOpen = isMenuOpen
+        DebugLog.write("hotKey fired, isMenuOpen=\(wasOpen)")
+        toggleMenu(pressedWhileOpen: wasOpen)
+    }
+
+    private func toggleMenu(pressedWhileOpen: Bool) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            guard self.claimToggle() else {
+                DebugLog.write("  ignored, too soon after the last one")
+                return
+            }
+
+            if pressedWhileOpen || self.isMenuOpen {
+                DebugLog.write("  closing")
+                self.menu.cancelTracking()
+            } else {
+                DebugLog.write("  opening")
+                self.showMenu()
+            }
         }
+    }
+
+    /// Shows the menu under the status item. Sleepy pops it up itself rather
+    /// than handing it to the status item, so opening from the keyboard and
+    /// opening from a click land in the same place.
+    private func showMenu() {
+        guard let button = statusItem?.button else { return }
+
+        // A menu the status item shows for us picks up the menu bar's
+        // appearance. One we pop up ourselves does not, and comes out in light
+        // dress on a dark Mac, so tell it what to wear.
+        menu.appearance = NSApp.effectiveAppearance
+
+        button.highlight(true)
+        menu.popUp(
+            positioning: nil,
+            at: NSPoint(x: 0, y: button.bounds.maxY + 5),
+            in: button
+        )
+        DebugLog.write("  popUp returned")
+    }
+
+    @objc private func closeMenu() {
+        DebugLog.write("map item key equivalent fired")
+        guard claimToggle() else {
+            DebugLog.write("  ignored, too soon after the last one")
+            return
+        }
+        menu.cancelTracking()
+    }
+
+    private func claimToggle() -> Bool {
+        let now = ProcessInfo.processInfo.systemUptime
+        guard now - lastToggle > 0.25 else { return false }
+        lastToggle = now
+        return true
     }
 
     private func applyShortcut(_ shortcut: MenuShortcut) {
         MenuShortcut.current = shortcut
         hotKey.unregister()
 
+        mapItem?.keyEquivalent = shortcut.keyEquivalent
+        mapItem?.keyEquivalentModifierMask = shortcut.modifierFlags
+
         if shortcut != .off {
             let registered = hotKey.register(shortcut) { [weak self] in
-                self?.toggleMenu()
+                self?.handleShortcut()
             }
+            DebugLog.write("shortcut \(shortcut.displayName) registered=\(registered)")
             if !registered {
                 shortcutItems[shortcut]?.toolTip = "Another app is already using \(shortcut.displayName)"
             }
@@ -118,8 +195,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             frame: NSRect(origin: .zero, size: DayNightMapView.preferredSize)
         )
         mapView.place = location.coordinate
-        let mapItem = NSMenuItem()
+        // The map item carries the shortcut as a key equivalent as well. It
+        // draws its own view, so nothing of the shortcut shows, and it gives
+        // the menu a way to close itself on the same keys that opened it.
+        mapItem = NSMenuItem()
         mapItem.view = mapView
+        mapItem.target = self
+        mapItem.action = #selector(closeMenu)
         menu.addItem(mapItem)
 
         menu.addItem(.separator())
@@ -210,7 +292,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         quitItem.target = self
         menu.addItem(quitItem)
 
-        statusItem.menu = menu
+        self.menu = menu
+        if let button = statusItem.button {
+            button.target = self
+            button.action = #selector(statusItemClicked)
+            button.sendAction(on: [.leftMouseDown, .rightMouseDown])
+        }
         updateMenuState()
         updatePermissionState()
         updateLaunchAtLoginState()
